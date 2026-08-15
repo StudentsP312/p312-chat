@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: chat-app
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secret.yaml
+  - postgres-statefulset.yaml
+  - redis-deployment.yaml
+  - migration-job.yaml
+  - api-deployment.yaml
+  - celery-worker-deployment.yaml
+  - ingress.yaml

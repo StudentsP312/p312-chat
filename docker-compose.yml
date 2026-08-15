@@ -1,0 +1,179 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: chat_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-chat_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-chat_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-chat_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-chat_user} -d ${POSTGRES_DB:-chat_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: chat_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    container_name: chat_minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${AWS_ACCESS_KEY_ID:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${AWS_SECRET_ACCESS_KEY:-minioadmin}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  create_minio_bucket:
+    image: minio/mc:latest
+    container_name: chat_minio_init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc alias set local http://minio:9000 ${AWS_ACCESS_KEY_ID:-minioadmin} ${AWS_SECRET_ACCESS_KEY:-minioadmin};
+      /usr/bin/mc mb --ignore-existing local/${S3_BUCKET:-chat-bucket};
+      /usr/bin/mc anonymous set download local/${S3_BUCKET:-chat-bucket};
+      exit 0;
+      "
+    restart: "no"
+
+  migration:
+    build: .
+    container_name: chat_migration
+    command: alembic upgrade head
+    environment:
+      - POSTGRES_SERVER=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=${POSTGRES_USER:-chat_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-chat_secret}
+      - POSTGRES_DB=${POSTGRES_DB:-chat_db}
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build: .
+    container_name: chat_api
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    environment:
+      - POSTGRES_SERVER=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=${POSTGRES_USER:-chat_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-chat_secret}
+      - POSTGRES_DB=${POSTGRES_DB:-chat_db}
+      - REDIS_URL=redis://redis:6379/0
+      - S3_BUCKET=${S3_BUCKET:-chat-bucket}
+      - S3_ENDPOINT_URL=http://minio:9000
+      - S3_REGION_NAME=${S3_REGION_NAME:-us-east-1}
+      - S3_PUBLIC_BASE_URL=${S3_PUBLIC_BASE_URL:-http://localhost:9000/chat-bucket}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-minioadmin}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-minioadmin}
+      - HEALTH_CHECK_S3=${HEALTH_CHECK_S3:-true}
+      - JWT_SECRET=${JWT_SECRET:-change_me_to_random_secret_string}
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      create_minio_bucket:
+        condition: service_completed_successfully
+      migration:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  celery_worker:
+    build: .
+    container_name: chat_celery_worker
+    command: celery -A app.tasks.celery_app worker -l info
+    environment:
+      - POSTGRES_SERVER=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=${POSTGRES_USER:-chat_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-chat_secret}
+      - POSTGRES_DB=${POSTGRES_DB:-chat_db}
+      - REDIS_URL=redis://redis:6379/0
+      - S3_BUCKET=${S3_BUCKET:-chat-bucket}
+      - S3_ENDPOINT_URL=http://minio:9000
+      - S3_REGION_NAME=${S3_REGION_NAME:-us-east-1}
+      - S3_PUBLIC_BASE_URL=${S3_PUBLIC_BASE_URL:-http://localhost:9000/chat-bucket}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-minioadmin}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-minioadmin}
+      - HEALTH_CHECK_S3=${HEALTH_CHECK_S3:-true}
+      - JWT_SECRET=${JWT_SECRET:-change_me_to_random_secret_string}
+      - PYTHONUNBUFFERED=1
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      create_minio_bucket:
+        condition: service_completed_successfully
+      migration:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  celery_beat:
+    build: .
+    container_name: chat_celery_beat
+    command: celery -A app.tasks.celery_app beat -l info
+    environment:
+      - POSTGRES_SERVER=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=${POSTGRES_USER:-chat_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-chat_secret}
+      - POSTGRES_DB=${POSTGRES_DB:-chat_db}
+      - REDIS_URL=redis://redis:6379/0
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migration:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:

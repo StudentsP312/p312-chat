@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="ru" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orbit Chat — Liquid Glass</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#faf5ff',
+                            100: '#f3e8ff',
+                            200: '#e9d5ff',
+                            300: '#d8b4fe',
+                            400: '#c084fc',
+                            500: '#a855f7',
+                            600: '#9333ea',
+                            700: '#7e22ce',
+                            800: '#6b21a8',
+                            900: '#581c87',
+                            950: '#3b0764',
+                        }
+                    },
+                    animation: {
+                        'blob': 'blob 10s infinite alternate cubic-bezier(0.4, 0, 0.2, 1)',
+                    },
+                    keyframes: {
+                        blob: {
+                            '0%': { transform: 'translate(0px, 0px) scale(1)' },
+                            '33%': { transform: 'translate(30px, -40px) scale(1.15)' },
+                            '66%': { transform: 'translate(-25px, 25px) scale(0.9)' },
+                            '100%': { transform: 'translate(0px, 0px) scale(1)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+        
+        * {
+            font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        /* Glassmorphism Styles */
+        .glass-panel {
+            background: rgba(17, 10, 36, 0.62);
+            backdrop-filter: blur(28px);
+            -webkit-backdrop-filter: blur(28px);
+            border: 1px solid rgba(168, 85, 247, 0.18);
+            box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.45), inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+        }
+
+        .glass-card {
+            background: rgba(26, 16, 53, 0.5);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(168, 85, 247, 0.18);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        .glass-input {
+            background: rgba(13, 7, 28, 0.55);
+            backdrop-filter: blur(14px);
+            border: 1px solid rgba(168, 85, 247, 0.22);
+            transition: all 0.25s ease;
+        }
+        .glass-input:focus {
+            border-color: rgba(192, 38, 211, 0.7);
+            box-shadow: 0 0 18px rgba(168, 85, 247, 0.25);
+            outline: none;
+        }
+
+        .glass-btn-primary {
+            background: linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #c026d3 100%);
+            box-shadow: 0 4px 20px rgba(168, 85, 247, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+            transition: all 0.25s ease;
+        }
+        .glass-btn-primary:hover {
+            box-shadow: 0 6px 28px rgba(192, 38, 211, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+            transform: translateY(-1px);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(10, 5, 20, 0.2);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(168, 85, 247, 0.3);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(192, 38, 211, 0.6);
+        }
+    </style>
+</head>
+<body class="bg-[#080414] text-slate-100 min-h-screen relative overflow-hidden selection:bg-purple-500 selection:text-white">
+
+    <!-- Ambient Liquid Glowing Orbs -->
+    <div class="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        <div class="absolute -top-[20%] -left-[10%] w-[650px] h-[650px] bg-purple-700/25 rounded-full blur-[140px] animate-blob"></div>
+        <div class="absolute top-[35%] -right-[15%] w-[600px] h-[600px] bg-fuchsia-600/20 rounded-full blur-[150px] animate-blob [animation-delay:4s]"></div>
+        <div class="absolute -bottom-[20%] left-[25%] w-[700px] h-[700px] bg-violet-800/25 rounded-full blur-[160px] animate-blob [animation-delay:8s]"></div>
+        <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(8,4,20,0.85)_100%)]"></div>
+    </div>
+
+    <!-- Main Layout Container -->
+    <div class="relative z-10 flex flex-col h-screen max-w-7xl mx-auto p-2 sm:p-4 lg:p-6 gap-3 sm:gap-4">
+
+        <!-- Top Header Navigation -->
+        <header class="glass-panel rounded-2xl px-4 py-3 flex items-center justify-between shadow-2xl flex-shrink-0">
+            <!-- Brand Logo -->
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-violet-600 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-purple-500/30">
+                    <i data-lucide="messages-square" class="w-5 h-5 text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold bg-gradient-to-r from-white via-purple-200 to-fuchsia-300 bg-clip-text text-transparent leading-tight tracking-wide">
+                        Orbit Chat
+                    </h1>
+                    <div class="flex items-center gap-2 text-xs text-purple-300/60">
+                        <span id="wsStatusDot" class="w-2 h-2 rounded-full bg-amber-400"></span>
+                        <span id="wsStatusText">Подключение...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Center Health Badges (Desktop) -->
+            <div class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-950/40 border border-purple-500/20 text-xs">
+                <span class="text-purple-300/80 font-medium flex items-center gap-1.5">
+                    <i data-lucide="activity" class="w-3.5 h-3.5 text-purple-400"></i> System:
+                </span>
+                <span id="healthApi" class="px-2 py-0.5 rounded-md bg-purple-900/50 text-slate-300">API: ...</span>
+                <span id="healthDb" class="px-2 py-0.5 rounded-md bg-purple-900/50 text-slate-300">DB: ...</span>
+                <span id="healthRedis" class="px-2 py-0.5 rounded-md bg-purple-900/50 text-slate-300">Redis: ...</span>
+                <span id="healthS3" class="px-2 py-0.5 rounded-md bg-purple-900/50 text-slate-300">S3: ...</span>
+            </div>
+
+            <!-- Right Profile / Auth Actions -->
+            <div class="flex items-center gap-2.5">
+                <!-- Notifications Bell -->
+                <div class="relative">
+                    <button id="notifBtn" onclick="toggleNotifications()" class="p-2 rounded-xl glass-input hover:bg-purple-900/40 text-purple-200 transition relative">
+                        <i data-lucide="bell" class="w-5 h-5"></i>
+                        <span id="notifBadge" class="hidden absolute -top-1 -right-1 w-4 h-4 bg-fuchsia-500 text-white text-[10px] font-bold rounded-full items-center justify-center">0</span>
+                    </button>
+
+                    <!-- Notifications Dropdown Panel -->
+                    <div id="notifDropdown" class="hidden absolute right-0 mt-2 w-80 sm:w-96 glass-panel rounded-2xl p-4 shadow-2xl z-50">
+                        <div class="flex items-center justify-between pb-3 border-b border-purple-500/20">
+                            <h3 class="font-semibold text-sm text-purple-200 flex items-center gap-2">
+                                <i data-lucide="bell-ring" class="w-4 h-4 text-fuchsia-400"></i> Уведомления
+                            </h3>
+                            <button onclick="fetchNotifications()" class="text-xs text-purple-400 hover:text-purple-200">Обновить</button>
+                        </div>
+                        <div id="notifList" class="mt-3 max-h-72 overflow-y-auto space-y-2 text-xs text-purple-200/80">
+                            <div class="text-center py-4 text-purple-400/50">Нет новых уведомлений</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- User Profile Pill (Authenticated) -->
+                <div id="userProfile" class="hidden flex items-center gap-2">
+                    <div class="flex items-center gap-2 pl-3 pr-2 py-1.5 rounded-xl glass-input">
+                        <div class="w-7 h-7 rounded-lg bg-gradient-to-tr from-purple-600 to-fuchsia-600 flex items-center justify-center font-bold text-xs uppercase shadow">
+                            <span id="userAvatarText">U</span>
+                        </div>
+                        <span id="userNameText" class="text-sm font-medium text-purple-100 max-w-[110px] truncate">username</span>
+                        <div class="h-4 w-[1px] bg-purple-500/30 mx-1"></div>
+                        <button onclick="logoutUser()" title="Выйти" class="p-1 text-purple-300 hover:text-rose-400 transition">
+                            <i data-lucide="log-out" class="w-4 h-4"></i>
+                        </button>
+                        <button onclick="logoutAllSessions()" title="Завершить все сессии" class="p-1 text-purple-300 hover:text-amber-400 transition">
+                            <i data-lucide="shield-alert" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Login / Register Button (Guest) -->
+                <div id="guestProfile">
+                    <button onclick="openAuthModal('login')" class="glass-btn-primary px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 text-white">
+                        <i data-lucide="log-in" class="w-4 h-4"></i> Войти
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Chat Area -->
+        <main class="glass-panel rounded-3xl flex-1 flex flex-col shadow-2xl overflow-hidden relative border border-purple-500/20">
+
+            <!-- Chat Channel Bar -->
+            <div class="px-5 py-3 border-b border-purple-500/15 flex items-center justify-between bg-purple-950/20 flex-shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]"></div>
+                    <h2 class="text-sm font-semibold text-purple-100"># public-lounge</h2>
+                    <span class="text-xs text-purple-300/50 hidden sm:inline">• Общий канал сообщений с поддержкой медиа</span>
+                </div>
+                <button id="loadOlderBtn" onclick="loadOlderMessages()" class="text-xs px-3 py-1.5 rounded-lg glass-input hover:bg-purple-900/40 text-purple-300 flex items-center gap-1.5 transition">
+                    <i data-lucide="history" class="w-3.5 h-3.5"></i> Ранее
+                </button>
+            </div>
+
+            <!-- Messages List Container -->
+            <div id="messagesContainer" class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 scroll-smooth">
+                <div id="emptyChatState" class="h-full flex flex-col items-center justify-center text-center p-8 text-purple-300/40">
+                    <div class="w-16 h-16 rounded-2xl bg-purple-950/50 border border-purple-500/20 flex items-center justify-center mb-3">
+                        <i data-lucide="message-square-dashed" class="w-8 h-8 text-purple-400/50"></i>
+                    </div>
+                    <p class="font-medium text-base text-purple-200/70">Сообщений пока нет</p>
+                    <p class="text-xs mt-1 text-purple-300/40">Начните общение первым!</p>
+                </div>
+            </div>
+
+            <!-- File Upload Preview Banner -->
+            <div id="filePreviewBanner" class="hidden px-5 py-2.5 bg-purple-950/70 border-t border-purple-500/20 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div id="filePreviewThumb" class="w-10 h-10 rounded-lg bg-purple-900/60 border border-purple-500/30 overflow-hidden flex items-center justify-center">
+                        <i data-lucide="file" class="w-5 h-5 text-purple-300"></i>
+                    </div>
+                    <div>
+                        <p id="filePreviewName" class="text-xs font-semibold text-purple-200 max-w-xs truncate">file.png</p>
+                        <p id="filePreviewSize" class="text-[11px] text-purple-300/60">120 KB</p>
+                    </div>
+                </div>
+                <button onclick="clearSelectedFile()" class="p-1.5 text-purple-400 hover:text-rose-400 transition">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- Message Input Form Area -->
+            <div class="p-3 sm:p-4 bg-purple-950/40 border-t border-purple-500/20 flex-shrink-0">
+                <form id="messageForm" onsubmit="sendMessage(event)" class="flex items-end gap-2.5">
+                    
+                    <!-- File Attach Button -->
+                    <input type="file" id="fileInput" onchange="handleFileSelected(event)" class="hidden" />
+                    <button type="button" onclick="document.getElementById('fileInput').click()" title="Прикрепить файл" class="p-3 rounded-2xl glass-input hover:bg-purple-900/50 text-purple-300 transition flex-shrink-0">
+                        <i data-lucide="paperclip" class="w-5 h-5"></i>
+                    </button>
+
+                    <!-- Text Input Box -->
+                    <div class="relative flex-1">
+                        <textarea
+                            id="messageInput"
+                            rows="1"
+                            maxlength="4000"
+                            placeholder="Напишите сообщение... (Enter для отправки, Shift+Enter для новой строки)"
+                            class="w-full resize-none glass-input rounded-2xl px-4 py-3 text-sm text-purple-100 placeholder-purple-400/40 focus:ring-0 max-h-32 overflow-y-auto"
+                            onkeydown="handleInputKeyDown(event)"
+                        ></textarea>
+                    </div>
+
+                    <!-- Send Button -->
+                    <button type="submit" id="sendBtn" class="glass-btn-primary p-3 rounded-2xl text-white flex-shrink-0 hover:scale-105 active:scale-95 transition">
+                        <i data-lucide="send" class="w-5 h-5"></i>
+                    </button>
+                </form>
+            </div>
+        </main>
+    </div>
+
+    <!-- Auth Modal (Login / Register / Reset) -->
+    <div id="authModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+        <div class="glass-panel w-full max-w-md rounded-3xl p-6 sm:p-8 shadow-2xl relative border border-purple-500/30">
+            
+            <!-- Close Button -->
+            <button onclick="closeAuthModal()" class="absolute top-5 right-5 text-purple-400 hover:text-white transition">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+
+            <!-- Tabs: Login / Register / Reset -->
+            <div class="flex items-center gap-2 p-1 rounded-2xl bg-purple-950/60 border border-purple-500/20 mb-6">
+                <button id="tabLogin" onclick="switchAuthTab('login')" class="flex-1 py-2 rounded-xl text-xs font-semibold transition text-white bg-purple-600 shadow">Вход</button>
+                <button id="tabRegister" onclick="switchAuthTab('register')" class="flex-1 py-2 rounded-xl text-xs font-semibold text-purple-300 hover:text-white transition">Регистрация</button>
+                <button id="tabReset" onclick="switchAuthTab('reset')" class="flex-1 py-2 rounded-xl text-xs font-semibold text-purple-300 hover:text-white transition">Сброс</button>
+            </div>
+
+            <!-- Login Form -->
+            <form id="formLogin" onsubmit="handleLoginSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-medium text-purple-300 mb-1.5">Имя пользователя</label>
+                    <input type="text" id="loginUsername" required class="w-full glass-input rounded-xl px-4 py-2.5 text-sm text-purple-100 placeholder-purple-400/40" placeholder="alice" />
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-purple-300 mb-1.5">Пароль</label>
+                    <input type="password" id="loginPassword" required class="w-full glass-input rounded-xl px-4 py-2.5 text-sm text-purple-100 placeholder-purple-400/40" placeholder="••••••••" />
+                </div>
+                <button type="submit" class="w-full glass-btn-primary py-3 rounded-xl text-sm font-semibold text-white mt-2">
+                    Войти в аккаунт
+                </button>
+            </form>
+
+            <!-- Register Form -->
+            <form id="formRegister" onsubmit="handleRegisterSubmit(event)" class="hidden space-y-4">
+                <div>
+                    <label class="block text-xs font-medium text-purple-300 mb-1.5">Имя пользователя (3-32 символа, [a-z0-9_])</label>
+                    <input type="text" id="regUsername" required pattern="^[a-zA-Z0-9_]{3,32}$" class="w-full glass-input rounded-xl px-4 py-2.5 text-sm text-purple-100 placeholder-purple-400/40" placeholder="alice_123" />
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-purple-300 mb-1.5">Пароль (мин. 8 символов)</label>
+                    <input type="password" id="regPassword" required minlength="8" class="w-full glass-input rounded-xl px-4 py-2.5 text-sm text-purple-100 placeholder-purple-400/40" placeholder="••••••••" />
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-purple-300 mb-1.5">Повторите пароль</label>
+                    <input type="password" id="regPasswordConfirm" required minlength="8" class="w-full glass-input rounded-xl px-4 py-2.5 text-sm text-purple-100 placeholder-purple-400/40" placeholder="••••••••" />
+                </div>
+                <button type="submit" class="w-full glass-btn-primary py-3 rounded-xl text-sm font-semibold text-white mt-2">
+                    Зарегистрироваться
+                </button>
+            </form>
+
+            <!-- Password Reset Form -->
+            <div id="formReset" class="hidden space-y-4">
+                <!-- Step 1: Request Code -->
+                <div id="resetStep1" class="space-y-4">
+                    <p class="text-xs text-purple-300/70">Введите имя пользователя, чтобы сгенерировать код для сброса пароля.</p>
+                    <div>
+                        <label class="block text-xs font-medium text-purple-300 mb-1.5">Имя пользователя</label>
+                        <input type="text" id="resetUsername" required class="w-full glass-input rounded-xl px-4 py-2.5 text-sm text-purple-100 placeholder-purple-400/40" placeholder="alice" />
+                    </div>
+                    <button type="button" onclick="handleResetRequest()" class="w-full glass-btn-primary py-3 rounded-xl text-sm font-semibold text-white">
+                        Получить код
+                    </button>
+                </div>
+
+                <!-- Step 2: Confirm Code & Set New Password -->
+                <div id="resetStep2" class="hidden space-y-4">
+                    <p class="text-xs text-purple-300/70">Код сгенерирован (см. debug_code в ответе). Введите его и новый пароль.</p>
+                    <div>
+                        <label class="block text-xs font-medium text-purple-300 mb-1.5">Код подтверждения</label>
+                        <input type="text" id="resetCode" class="w-full glass-input rounded-xl px-4 py-2.5 text-sm text-purple-100 placeholder-purple-400/40" placeholder="123456" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-purple-300 mb-1.5">Новый пароль</label>
+                        <input type="password" id="resetNewPassword" minlength="8" class="w-full glass-input rounded-xl px-4 py-2.5 text-sm text-purple-100 placeholder-purple-400/40" placeholder="••••••••" />
+                    </div>
+                    <button type="button" onclick="handleResetConfirm()" class="w-full glass-btn-primary py-3 rounded-xl text-sm font-semibold text-white">
+                        Сохранить новый пароль
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Lightbox Modal -->
+    <div id="lightboxModal" onclick="closeLightbox()" class="hidden fixed inset-0 z-50 bg-black/90 backdrop-blur-xl flex items-center justify-center p-4">
+        <div class="relative max-w-5xl max-h-[90vh]" onclick="event.stopPropagation()">
+            <img id="lightboxImg" src="" alt="Enlarged image" class="rounded-2xl max-h-[85vh] max-w-full object-contain shadow-2xl border border-purple-500/30" />
+            <button onclick="closeLightbox()" class="absolute -top-4 -right-4 p-2 bg-purple-900/80 text-white rounded-full hover:bg-fuchsia-600 transition shadow-lg">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+            <a id="lightboxDownload" href="" target="_blank" download class="absolute bottom-4 right-4 px-4 py-2 rounded-xl glass-panel text-xs text-white hover:bg-purple-600 transition flex items-center gap-2">
+                <i data-lucide="download" class="w-4 h-4"></i> Скачать оригинал
+            </a>
+        </div>
+    </div>
+
+    <!-- Toast Notifications Container -->
+    <div id="toastContainer" class="fixed top-5 right-5 z-50 space-y-2 pointer-events-none"></div>
+
+    <!-- Client-side Logic Scripts -->
+    <script>
+        // State Management
+        let token = localStorage.getItem('access_token') || null;
+        let currentUser = null;
+        let ws = null;
+        let messages = [];
+        let earliestMessageId = null;
+        let selectedFile = null;
+        let wsReconnectTimer = null;
+
+        function refreshIcons() {
+            if (window.lucide) lucide.createIcons();
+        }
+
+        // --- Toast System ---
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-2xl glass-panel shadow-2xl text-xs font-medium border ${
+                type === 'error' ? 'border-rose-500/40 text-rose-200' :
+                type === 'success' ? 'border-emerald-500/40 text-emerald-200' :
+                'border-purple-500/30 text-purple-200'
+            }`;
+
+            const iconName = type === 'error' ? 'alert-circle' : type === 'success' ? 'check-circle' : 'info';
+            toast.innerHTML = `
+                <i data-lucide="${iconName}" class="w-4 h-4 flex-shrink-0"></i>
+                <span>${message}</span>
+            `;
+            container.appendChild(toast);
+            refreshIcons();
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'transition', 'duration-300');
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        // --- Health Check ---
+        async function checkSystemHealth() {
+            try {
+                const res = await fetch('/health');
+                const data = await res.json();
+                
+                const updateBadge = (elemId, name, status) => {
+                    const el = document.getElementById(elemId);
+                    if (!el) return;
+                    el.textContent = `${name}: ${status}`;
+                    el.className = `px-2 py-0.5 rounded-md text-[11px] ${
+                        status === 'ok' ? 'bg-emerald-950/60 text-emerald-300 border border-emerald-500/30' :
+                        status === 'skipped' || status === 'not_configured' ? 'bg-purple-900/40 text-purple-300' :
+                        'bg-rose-950/60 text-rose-300 border border-rose-500/30'
+                    }`;
+                };
+
+                updateBadge('healthApi', 'API', data.api);
+                updateBadge('healthDb', 'DB', data.database);
+                updateBadge('healthRedis', 'Redis', data.redis);
+                updateBadge('healthS3', 'S3', data.s3);
+            } catch (err) {
+                console.warn('Health check failed', err);
+            }
+        }
+
+        // --- Auth Modals & Tabs ---
+        function openAuthModal(tab = 'login') {
+            document.getElementById('authModal').classList.remove('hidden');
+            switchAuthTab(tab);
+            refreshIcons();
+        }
+
+        function closeAuthModal() {
+            document.getElementById('authModal').classList.add('hidden');
+        }
+
+        function switchAuthTab(tab) {
+            const tabs = ['login', 'register', 'reset'];
+            tabs.forEach(t => {
+                const btn = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1));
+                const form = document.getElementById('form' + t.charAt(0).toUpperCase() + t.slice(1));
+                if (t === tab) {
+                    btn.className = 'flex-1 py-2 rounded-xl text-xs font-semibold transition text-white bg-purple-600 shadow';
+                    form.classList.remove('hidden');
+                } else {
+                    btn.className = 'flex-1 py-2 rounded-xl text-xs font-semibold text-purple-300 hover:text-white transition';
+                    form.classList.add('hidden');
+                }
+            });
+        }
+
+        // --- Auth Actions ---
+        async function handleLoginSubmit(e) {
+            e.preventDefault();
+            const username = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value;
+
+            const formData = new URLSearchParams();
+            formData.append('username', username);
+            formData.append('password', password);
+
+            try {
+                const res = await fetch('/auth/token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: formData
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || 'Ошибка авторизации');
+                }
+
+                const data = await res.json();
+                token = data.access_token;
+                localStorage.setItem('access_token', token);
+                currentUser = username;
+                localStorage.setItem('username', username);
+
+                closeAuthModal();
+                updateAuthUI();
+                connectWebSocket();
+                loadMessages(true);
+                showToast(`С возвращением, ${username}!`, 'success');
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        }
+
+        async function handleRegisterSubmit(e) {
+            e.preventDefault();
+            const username = document.getElementById('regUsername').value.trim();
+            const password = document.getElementById('regPassword').value;
+            const confirm = document.getElementById('regPasswordConfirm').value;
+
+            if (password !== confirm) {
+                showToast('Пароли не совпадают!', 'error');
+                return;
+            }
+
+            try {
+                const res = await fetch('/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || 'Ошибка регистрации');
+                }
+
+                showToast('Регистрация успешна! Теперь выполните вход.', 'success');
+                switchAuthTab('login');
+                document.getElementById('loginUsername').value = username;
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        }
+
+        async function handleResetRequest() {
+            const username = document.getElementById('resetUsername').value.trim();
+            if (!username) {
+                showToast('Введите имя пользователя', 'error');
+                return;
+            }
+
+            try {
+                const res = await fetch('/auth/password-reset/request', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username })
+                });
+
+                const data = await res.json();
+                if (data.debug_code) {
+                    showToast(`Код сброса: ${data.debug_code}`, 'info');
+                    document.getElementById('resetCode').value = data.debug_code;
+                } else {
+                    showToast(data.detail || 'Запрос отправлен', 'info');
+                }
+
+                document.getElementById('resetStep1').classList.add('hidden');
+                document.getElementById('resetStep2').classList.remove('hidden');
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        }
+
+        async function handleResetConfirm() {
+            const username = document.getElementById('resetUsername').value.trim();
+            const code = document.getElementById('resetCode').value.trim();
+            const new_password = document.getElementById('resetNewPassword').value;
+
+            try {
+                const res = await fetch('/auth/password-reset/confirm', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, code, new_password })
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || 'Неверный код сброса');
+                }
+
+                showToast('Пароль успешно изменен! Войдите с новым паролем.', 'success');
+                switchAuthTab('login');
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        }
+
+        async function logoutUser() {
+            if (token) {
+                try {
+                    await fetch('/auth/logout', {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                } catch (e) {}
+            }
+            clearAuth();
+            showToast('Вы вышли из аккаунта', 'info');
+        }
+
+        async function logoutAllSessions() {
+            if (token) {
+                try {
+                    await fetch('/auth/logout-all', {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                } catch (e) {}
+            }
+            clearAuth();
+            showToast('Все сессии завершены', 'info');
+        }
+
+        function clearAuth() {
+            token = null;
+            currentUser = null;
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('username');
+            if (ws) ws.close();
+            updateAuthUI();
+            messages = [];
+            renderMessages();
+        }
+
+        function updateAuthUI() {
+            const userProfile = document.getElementById('userProfile');
+            const guestProfile = document.getElementById('guestProfile');
+            const storedName = localStorage.getItem('username');
+
+            if (token && storedName) {
+                currentUser = storedName;
+                userProfile.classList.remove('hidden');
+                guestProfile.classList.add('hidden');
+                document.getElementById('userNameText').textContent = currentUser;
+                document.getElementById('userAvatarText').textContent = currentUser.slice(0, 2).toUpperCase();
+            } else {
+                userProfile.classList.add('hidden');
+                guestProfile.classList.remove('hidden');
+            }
+            refreshIcons();
+        }
+
+        // --- WebSocket Connection ---
+        function connectWebSocket() {
+            if (!token) return;
+            if (ws && ws.readyState === WebSocket.OPEN) return;
+
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws?token=${token}`;
+
+            const dot = document.getElementById('wsStatusDot');
+            const text = document.getElementById('wsStatusText');
+
+            dot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-ping';
+            text.textContent = 'Соединение...';
+
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                dot.className = 'w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]';
+                text.textContent = 'В сети (Live)';
+                if (wsReconnectTimer) clearInterval(wsReconnectTimer);
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'connected') {
+                        // Handshake
+                    } else if (data.type === 'error') {
+                        showToast(data.detail, 'error');
+                    } else if (data.id) {
+                        appendNewMessage(data);
+                    }
+                } catch (e) {
+                    console.error('WS Parse Error', e);
+                }
+            };
+
+            ws.onclose = () => {
+                dot.className = 'w-2 h-2 rounded-full bg-rose-500';
+                text.textContent = 'Отключен';
+                if (token && !wsReconnectTimer) {
+                    wsReconnectTimer = setInterval(() => {
+                        if (token) connectWebSocket();
+                    }, 5000);
+                }
+            };
+
+            ws.onerror = () => {
+                dot.className = 'w-2 h-2 rounded-full bg-rose-500';
+                text.textContent = 'Ошибка сети';
+            };
+        }
+
+        // --- Messages & Chat Handling ---
+        async function loadMessages(isInitial = false) {
+            if (!token) return;
+            try {
+                const res = await fetch('/messages?limit=50', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!res.ok) {
+                    if (res.status === 401) logoutUser();
+                    return;
+                }
+                const data = await res.json();
+                messages = data;
+                if (messages.length > 0) {
+                    earliestMessageId = messages[0].id;
+                }
+                renderMessages();
+                scrollToBottom();
+            } catch (err) {
+                console.error('Failed to load messages', err);
+            }
+        }
+
+        async function loadOlderMessages() {
+            if (!token || !earliestMessageId) return;
+            try {
+                const res = await fetch(`/messages?limit=50&before_id=${earliestMessageId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!res.ok) return;
+                const older = await res.json();
+                if (older.length === 0) {
+                    showToast('Более ранних сообщений нет', 'info');
+                    return;
+                }
+                earliestMessageId = older[0].id;
+                messages = [...older, ...messages];
+                renderMessages();
+            } catch (err) {
+                showToast('Ошибка загрузки истории', 'error');
+            }
+        }
+
+        function appendNewMessage(msg) {
+            if (messages.find(m => m.id === msg.id)) return;
+            messages.push(msg);
+            renderMessages();
+            scrollToBottom();
+        }
+
+        function renderMessages() {
+            const container = document.getElementById('messagesContainer');
+            if (messages.length === 0) {
+                container.innerHTML = `
+                    <div id="emptyChatState" class="h-full flex flex-col items-center justify-center text-center p-8 text-purple-300/40">
+                        <div class="w-16 h-16 rounded-2xl bg-purple-950/50 border border-purple-500/20 flex items-center justify-center mb-3">
+                            <i data-lucide="message-square-dashed" class="w-8 h-8 text-purple-400/50"></i>
+                        </div>
+                        <p class="font-medium text-base text-purple-200/70">Сообщений пока нет</p>
+                        <p class="text-xs mt-1 text-purple-300/40">Начните общение первым!</p>
+                    </div>
+                `;
+                refreshIcons();
+                return;
+            }
+
+            container.innerHTML = messages.map(msg => {
+                const isMe = currentUser && msg.username.toLowerCase() === currentUser.toLowerCase();
+                const timeStr = msg.created_at ? new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+                
+                let mediaHtml = '';
+                if (msg.file_url || msg.thumbnail_url) {
+                    const isImg = msg.file_content_type && msg.file_content_type.startsWith('image/');
+                    const displayUrl = msg.thumbnail_url || msg.file_url;
+
+                    if (isImg) {
+                        mediaHtml = `
+                            <div class="mt-2 relative group overflow-hidden rounded-xl border border-purple-500/20 max-w-sm">
+                                <img src="${displayUrl}" alt="Attachment" class="cursor-pointer hover:scale-105 transition duration-300 max-h-64 w-full object-cover" onclick="openLightbox('${msg.file_url || displayUrl}')" />
+                                <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center pointer-events-none">
+                                    <i data-lucide="maximize-2" class="w-6 h-6 text-white drop-shadow"></i>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        const sizeStr = msg.file_size ? `${(msg.file_size / 1024).toFixed(1)} KB` : '';
+                        mediaHtml = `
+                            <div class="mt-2 flex items-center gap-3 p-2.5 rounded-xl bg-purple-950/60 border border-purple-500/30 max-w-xs">
+                                <div class="w-9 h-9 rounded-lg bg-purple-900/80 flex items-center justify-center text-purple-300 flex-shrink-0">
+                                    <i data-lucide="file-text" class="w-5 h-5"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-xs font-semibold text-purple-100 truncate">${msg.file_name || 'Вложение'}</p>
+                                    <p class="text-[10px] text-purple-300/60">${sizeStr}</p>
+                                </div>
+                                <a href="${msg.file_url}" target="_blank" download class="p-1.5 text-purple-400 hover:text-white transition">
+                                    <i data-lucide="download" class="w-4 h-4"></i>
+                                </a>
+                            </div>
+                        `;
+                    }
+                }
+
+                return `
+                    <div class="flex gap-3 ${isMe ? 'flex-row-reverse' : 'flex-row'} items-end group">
+                        <div class="w-8 h-8 rounded-xl bg-gradient-to-tr ${isMe ? 'from-fuchsia-600 to-pink-500' : 'from-violet-600 to-indigo-600'} flex items-center justify-center font-bold text-xs uppercase text-white shadow flex-shrink-0">
+                            ${msg.username.slice(0, 2).toUpperCase()}
+                        </div>
+
+                        <div class="max-w-[85%] sm:max-w-md md:max-w-lg space-y-1">
+                            <div class="flex items-center gap-2 px-1 ${isMe ? 'justify-end' : 'justify-start'}">
+                                <span class="text-[11px] font-semibold text-purple-300/80">${msg.username}</span>
+                                <span class="text-[10px] text-purple-400/50">${timeStr}</span>
+                            </div>
+                            <div class="p-3.5 rounded-2xl ${
+                                isMe 
+                                ? 'bg-gradient-to-br from-violet-600 to-purple-700 text-white rounded-br-none shadow-[0_4px_20px_rgba(124,58,237,0.3)]' 
+                                : 'glass-card text-purple-100 rounded-bl-none border border-purple-500/20'
+                            }">
+                                ${msg.text ? `<p class="text-sm leading-relaxed whitespace-pre-wrap break-words">${escapeHtml(msg.text)}</p>` : ''}
+                                ${mediaHtml}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            refreshIcons();
+        }
+
+        function scrollToBottom() {
+            const container = document.getElementById('messagesContainer');
+            setTimeout(() => {
+                container.scrollTop = container.scrollHeight;
+            }, 50);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // --- File Input & Preview ---
+        function handleFileSelected(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (file.size > 20 * 1024 * 1024) {
+                showToast('Размер файла превышает лимит 20 МБ', 'error');
+                e.target.value = '';
+                return;
+            }
+
+            selectedFile = file;
+            document.getElementById('filePreviewName').textContent = file.name;
+            document.getElementById('filePreviewSize').textContent = `${(file.size / 1024).toFixed(1)} KB`;
+
+            const thumb = document.getElementById('filePreviewThumb');
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    thumb.innerHTML = `<img src="${ev.target.result}" class="w-full h-full object-cover" />`;
+                };
+                reader.readAsDataURL(file);
+            } else {
+                thumb.innerHTML = `<i data-lucide="file" class="w-5 h-5 text-purple-300"></i>`;
+                refreshIcons();
+            }
+
+            document.getElementById('filePreviewBanner').classList.remove('hidden');
+        }
+
+        function clearSelectedFile() {
+            selectedFile = null;
+            document.getElementById('fileInput').value = '';
+            document.getElementById('filePreviewBanner').classList.add('hidden');
+        }
+
+        function handleInputKeyDown(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage(e);
+            }
+        }
+
+        async function sendMessage(e) {
+            if (e) e.preventDefault();
+            if (!token) {
+                openAuthModal('login');
+                showToast('Пожалуйста, авторизуйтесь для отправки сообщений', 'info');
+                return;
+            }
+
+            const input = document.getElementById('messageInput');
+            const text = input.value.trim();
+
+            if (!text && !selectedFile) return;
+
+            if (selectedFile) {
+                const formData = new FormData();
+                formData.append('text', text);
+                formData.append('file', selectedFile);
+
+                try {
+                    input.value = '';
+                    const fileToSend = selectedFile;
+                    clearSelectedFile();
+
+                    const res = await fetch('/messages', {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` },
+                        body: formData
+                    });
+
+                    if (!res.ok) {
+                        const err = await res.json();
+                        throw new Error(err.detail || 'Ошибка отправки файла');
+                    }
+                } catch (err) {
+                    showToast(err.message, 'error');
+                }
+            } else if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ text }));
+                input.value = '';
+            } else {
+                try {
+                    const formData = new FormData();
+                    formData.append('text', text);
+                    input.value = '';
+
+                    const res = await fetch('/messages', {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` },
+                        body: formData
+                    });
+
+                    if (!res.ok) {
+                        const err = await res.json();
+                        throw new Error(err.detail || 'Ошибка отправки сообщения');
+                    }
+                } catch (err) {
+                    showToast(err.message, 'error');
+                }
+            }
+        }
+
+        // --- Lightbox ---
+        function openLightbox(url) {
+            const modal = document.getElementById('lightboxModal');
+            document.getElementById('lightboxImg').src = url;
+            document.getElementById('lightboxDownload').href = url;
+            modal.classList.remove('hidden');
+            refreshIcons();
+        }
+
+        function closeLightbox() {
+            document.getElementById('lightboxModal').classList.add('hidden');
+        }
+
+        // --- Notifications ---
+        async function fetchNotifications() {
+            if (!token) return;
+            try {
+                const res = await fetch('/notifications', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!res.ok) return;
+                const items = await res.json();
+                const list = document.getElementById('notifList');
+                const badge = document.getElementById('notifBadge');
+
+                if (items.length > 0) {
+                    badge.textContent = items.length;
+                    badge.classList.remove('hidden');
+                    badge.classList.add('flex');
+
+                    list.innerHTML = items.map(n => `
+                        <div class="p-2.5 rounded-xl bg-purple-950/60 border border-purple-500/20 hover:border-purple-500/40 transition">
+                            <p class="font-medium text-purple-200">От: ${n.username}</p>
+                            <p class="text-purple-300/70 truncate">${n.text || (n.has_file ? '📎 Вложение' : '')}</p>
+                            <span class="text-[10px] text-purple-400/50">${n.created_at ? new Date(n.created_at).toLocaleTimeString() : ''}</span>
+                        </div>
+                    `).join('');
+                } else {
+                    badge.classList.add('hidden');
+                    list.innerHTML = '<div class="text-center py-4 text-purple-400/50">Нет новых уведомлений</div>';
+                }
+            } catch (e) {}
+        }
+
+        function toggleNotifications() {
+            const drop = document.getElementById('notifDropdown');
+            drop.classList.toggle('hidden');
+            if (!drop.classList.contains('hidden')) {
+                fetchNotifications();
+            }
+        }
+
+        // --- Initialize App on Load ---
+        window.addEventListener('DOMContentLoaded', () => {
+            refreshIcons();
+            updateAuthUI();
+            checkSystemHealth();
+            setInterval(checkSystemHealth, 15000);
+
+            if (token) {
+                connectWebSocket();
+                loadMessages(true);
+                fetchNotifications();
+                setInterval(fetchNotifications, 30000);
+            }
+        });
+    </script>
+</body>
+</html>

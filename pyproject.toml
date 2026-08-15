@@ -1,0 +1,25 @@
+[project]
+name = "p312-chat"
+version = "0.1.0"
+description = "A simple chat project"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "alembic>=1.19.1",
+    "asyncpg>=0.30.0",
+    "boto3>=1.43.72",
+    "celery>=5.6.3",
+    "celery-redbeat>=2.4.2",
+    "fastapi>=0.141.1",
+    "greenlet>=3.1.1",
+    "pillow>=12.3.0",
+    "psycopg[binary]>=3.3.4",
+    "pydantic-settings>=2.15.0",
+    "pyjwt>=2.13.0",
+    "python-multipart>=0.0.32",
+    "redis>=8.1.0",
+    "sqlalchemy>=2.0.52",
+    "uvicorn[standard]>=0.30.0",
+    "websockets>=13.0",
+]
+

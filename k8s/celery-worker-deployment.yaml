@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chat-celery-worker
+  namespace: chat-app
+  labels:
+    app.kubernetes.io/name: chat-celery-worker
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: chat-celery-worker
+  template:
+    metadata:
+      labels:
+        app: chat-celery-worker
+    spec:
+      containers:
+        - name: celery-worker
+          image: chat-app:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - celery
+            - -A
+            - app.tasks.celery_app
+            - worker
+            - -l
+            - info
+            - -c
+            - "4"
+          envFrom:
+            - configMapRef:
+                name: chat-config
+            - secretRef:
+                name: chat-secrets
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chat-celery-beat
+  namespace: chat-app
+  labels:
+    app.kubernetes.io/name: chat-celery-beat
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: chat-celery-beat
+  template:
+    metadata:
+      labels:
+        app: chat-celery-beat
+    spec:
+      containers:
+        - name: celery-beat
+          image: chat-app:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - celery
+            - -A
+            - app.tasks.celery_app
+            - beat
+            - -l
+            - info
+          envFrom:
+            - configMapRef:
+                name: chat-config
+            - secretRef:
+                name: chat-secrets
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi

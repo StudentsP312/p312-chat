@@ -1,0 +1,58 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: chat-migration
+  namespace: chat-app
+  labels:
+    app.kubernetes.io/name: chat-migration
+spec:
+  template:
+    metadata:
+      labels:
+        app: chat-migration
+    spec:
+      restartPolicy: OnFailure
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:16-alpine
+          command:
+            - sh
+            - -c
+            - |
+              until pg_isready -h $POSTGRES_SERVER -p $POSTGRES_PORT -U $POSTGRES_USER -d $POSTGRES_DB; do
+                echo "Waiting for PostgreSQL ($POSTGRES_SERVER:$POSTGRES_PORT) to be ready..."
+                sleep 2
+              done
+              echo "PostgreSQL is ready!"
+          env:
+            - name: POSTGRES_SERVER
+              valueFrom:
+                configMapKeyRef:
+                  name: chat-config
+                  key: POSTGRES_SERVER
+            - name: POSTGRES_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: chat-config
+                  key: POSTGRES_PORT
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: chat-config
+                  key: POSTGRES_DB
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: chat-secrets
+                  key: POSTGRES_USER
+      containers:
+        - name: alembic-migration
+          image: chat-app:latest
+          imagePullPolicy: IfNotPresent
+          command: ["alembic", "upgrade", "head"]
+          envFrom:
+            - configMapRef:
+                name: chat-config
+            - secretRef:
+                name: chat-secrets
+  backoffLimit: 4

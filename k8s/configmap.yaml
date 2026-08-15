@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: chat-config
+  namespace: chat-app
+  labels:
+    app.kubernetes.io/name: p312-chat
+data:
+  # Database Host & Port (Для Managed DB укажите внешний хост, например: rds-chat.xxx.rds.amazonaws.com)
+  POSTGRES_SERVER: "postgres-service"
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: "chat_db"
+
+  # Connection Pool Settings
+  DB_POOL_SIZE: "20"
+  DB_MAX_OVERFLOW: "10"
+  DB_POOL_TIMEOUT: "30"
+  DB_POOL_RECYCLE: "1800"
+
+  # Redis
+  REDIS_URL: "redis://redis-service:6379/0"
+
+  # Application Security & Token Settings
+  ALGORITHM: "HS256"
+  ACCESS_TOKEN_EXPIRE_MINUTES: "1440"
+
+  # Rate Limits & Spam Prevention
+  RATE_LIMIT_SECONDS: "5.0"
+  MAX_CONSECUTIVE_SAME_MESSAGES: "2"
+  SPAM_TTL_SECONDS: "3600"
+  MAX_TEXT_LENGTH: "4000"
+  MAX_FILE_SIZE: "20971520"
+  MESSAGE_CACHE_TTL_SECONDS: "2"
+  MESSAGE_RETENTION_DAYS: "30"
+  HEALTH_CHECK_S3: "false"
+
+  # S3 Object Storage Configuration
+  S3_BUCKET: "chat-bucket"
+  S3_ENDPOINT_URL: "https://s3.amazonaws.com"
+  S3_REGION_NAME: "us-east-1"
+  S3_PUBLIC_BASE_URL: ""
