@@ -1,13 +1,14 @@
 from dataclasses import dataclass
-import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.config import settings
 from app.core.database import AsyncSessionLocal, get_db
-from app.core.redis import redis_client
+from app.core.exceptions import AppException
 from app.models.models import User
+from app.services.auth_service import AuthService
+from app.services.health_service import HealthService
+from app.services.message_service import MessageService
+from app.services.storage_service import StorageService
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
@@ -18,68 +19,67 @@ class AuthContext:
     jti: str
 
 
-async def get_user_by_id(db: AsyncSession, user_id: int) -> User | None:
-    result = await db.execute(select(User).where(User.id == user_id))
-    return result.scalar_one_or_none()
+def get_storage_service() -> StorageService:
+    """Dependency for obtaining StorageService singleton/instance."""
+    return StorageService()
 
 
-async def get_user_by_username(db: AsyncSession, username: str) -> User | None:
-    result = await db.execute(select(User).where(User.username == username))
-    return result.scalar_one_or_none()
+def get_auth_service(db: AsyncSession = Depends(get_db)) -> AuthService:
+    """Dependency for obtaining AuthService with current database session."""
+    return AuthService(db)
+
+
+def get_message_service(
+    db: AsyncSession = Depends(get_db),
+    storage: StorageService = Depends(get_storage_service),
+) -> MessageService:
+    """Dependency for obtaining MessageService."""
+    return MessageService(db, storage)
+
+
+def get_health_service(
+    db: AsyncSession = Depends(get_db),
+    storage: StorageService = Depends(get_storage_service),
+) -> HealthService:
+    """Dependency for obtaining HealthService."""
+    return HealthService(db, storage)
 
 
 async def get_current_auth(
     token: str = Depends(oauth2_scheme),
-    db: AsyncSession = Depends(get_db),
+    auth_service: AuthService = Depends(get_auth_service),
 ) -> AuthContext:
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Не удалось проверить токен",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-
+    """Validate Bearer token and active session, returning authenticated context."""
     try:
-        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.ALGORITHM])
-        user_id = int(payload.get("sub"))
-        jti = payload.get("jti")
-    except Exception:
-        raise credentials_exception
-
-    if not jti:
-        raise credentials_exception
-
-    session_exists = await redis_client.exists(f"session:{jti}")
-    if not session_exists:
-        raise credentials_exception
-
-    user = await get_user_by_id(db, user_id)
-    if user is None:
-        raise credentials_exception
-
-    return AuthContext(user=user, jti=jti)
+        user, jti = await auth_service.validate_session(token)
+        return AuthContext(user=user, jti=jti)
+    except AppException as exc:
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail=exc.message,
+            headers=exc.headers,
+        ) from exc
 
 
 def get_current_user(auth: AuthContext = Depends(get_current_auth)) -> User:
+    """Dependency shortcut to extract User from AuthContext."""
     return auth.user
 
 
 async def authenticate_token(token: str, db: AsyncSession | None = None) -> User | None:
-    try:
-        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.ALGORITHM])
-        user_id = int(payload.get("sub"))
-        jti = payload.get("jti")
-    except Exception:
-        return None
-
-    if not jti:
-        return None
-
-    session_exists = await redis_client.exists(f"session:{jti}")
-    if not session_exists:
-        return None
-
+    """Compatibility helper to authenticate a raw token."""
     if db is not None:
-        return await get_user_by_id(db, user_id)
+        auth_service = AuthService(db)
+        try:
+            user, _ = await auth_service.validate_session(token)
+            return user
+        except Exception:
+            return None
 
     async with AsyncSessionLocal() as session:
-        return await get_user_by_id(session, user_id)
+        auth_service = AuthService(session)
+        try:
+            user, _ = await auth_service.validate_session(token)
+            return user
+        except Exception:
+            return None

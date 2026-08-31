@@ -1,19 +1,19 @@
-import io
 import json
-import os
 from datetime import datetime, timedelta, timezone
 from celery.schedules import crontab
 from redbeat import RedBeatSchedulerEntry
 from app.core.config import settings
 from app.core.database import SyncSessionLocal
 from app.core.redis import redis_sync
-from app.core.s3 import s3_client
 from app.models.models import Message
+from app.services.storage_service import StorageService
 from app.tasks.celery_app import celery_app
+
+storage_service = StorageService()
 
 
 @celery_app.task(name="notify_message")
-def notify_message(message_id: int):
+def notify_message(message_id: int) -> str:
     db = SyncSessionLocal()
     try:
         message = db.get(Message, message_id)
@@ -24,7 +24,7 @@ def notify_message(message_id: int):
             "id": message.id,
             "username": message.username,
             "text": message.text or "",
-            "has_file": bool(message.file_key),
+            "has_file": message.has_file,
             "created_at": message.created_at.isoformat() if message.created_at else None,
         }
 
@@ -36,57 +36,36 @@ def notify_message(message_id: int):
 
 
 @celery_app.task(name="process_file_thumbnail")
-def process_file_thumbnail(message_id: int):
+def process_file_thumbnail(message_id: int) -> str:
     db = SyncSessionLocal()
     try:
         message = db.get(Message, message_id)
-        if not message or not message.file_key:
+        if not message or not message.has_file:
             return "no_file"
 
-        if not message.file_content_type or not message.file_content_type.startswith("image/"):
+        if not message.is_image:
             return "not_image"
 
-        if not s3_client or not settings.S3_BUCKET:
+        if not storage_service.is_available:
             return "s3_not_configured"
 
-        try:
-            from PIL import Image
-        except Exception:
-            return "pillow_not_installed"
+        thumbnail_key = storage_service.create_thumbnail_sync(
+            file_key=message.file_key,  # type: ignore[arg-type]
+            content_type=message.file_content_type,
+        )
 
-        try:
-            obj = s3_client.get_object(Bucket=settings.S3_BUCKET, Key=message.file_key)
-            data = obj["Body"].read()
-
-            image = Image.open(io.BytesIO(data))
-            image.thumbnail((128, 128))
-
-            fmt = (image.format or "PNG").upper()
-            if fmt in ("JPEG", "JPG") and image.mode not in ("RGB", "L"):
-                image = image.convert("RGB")
-
-            buffer = io.BytesIO()
-            image.save(buffer, format=fmt)
-
-            thumbnail_key = f"thumbnails/{message.file_key}"
-            s3_client.put_object(
-                Bucket=settings.S3_BUCKET,
-                Key=thumbnail_key,
-                Body=buffer.getvalue(),
-                ContentType=message.file_content_type,
-            )
-
+        if thumbnail_key:
             message.thumbnail_key = thumbnail_key
             db.commit()
             return "ok"
-        except Exception as exc:
-            return f"error: {exc}"
+
+        return "skipped"
     finally:
         db.close()
 
 
 @celery_app.task(name="cleanup_old_messages")
-def cleanup_old_messages():
+def cleanup_old_messages() -> int:
     cutoff = datetime.now(timezone.utc) - timedelta(days=settings.MESSAGE_RETENTION_DAYS)
 
     db = SyncSessionLocal()
@@ -96,7 +75,6 @@ def cleanup_old_messages():
             return 0
 
         keys_to_delete = []
-
         for message in old_messages:
             if message.file_key:
                 keys_to_delete.append(message.file_key)
@@ -104,16 +82,8 @@ def cleanup_old_messages():
                 keys_to_delete.append(message.thumbnail_key)
             db.delete(message)
 
-        if keys_to_delete and s3_client and settings.S3_BUCKET:
-            try:
-                for i in range(0, len(keys_to_delete), 1000):
-                    chunk = keys_to_delete[i:i + 1000]
-                    s3_client.delete_objects(
-                        Bucket=settings.S3_BUCKET,
-                        Delete={"Objects": [{"Key": key} for key in chunk]},
-                    )
-            except Exception:
-                pass
+        if keys_to_delete:
+            storage_service.delete_objects_sync(keys_to_delete)
 
         db.commit()
 
@@ -129,13 +99,13 @@ def cleanup_old_messages():
 
 
 @celery_app.task(name="process_message")
-def process_message(message_id: int):
+def process_message(message_id: int) -> str:
     notify_message.delay(message_id)
     process_file_thumbnail.delay(message_id)
     return "queued"
 
 
-def ensure_beat_schedule():
+def ensure_beat_schedule() -> None:
     try:
         if redis_sync.exists("redbeat:bootstrap:v1"):
             return

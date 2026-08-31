@@ -1,6 +1,6 @@
 import boto3
-from fastapi import HTTPException, status
 from app.core.config import settings
+from app.core.exceptions import StorageUnavailableException
 
 s3_client = None
 if settings.S3_BUCKET:
@@ -13,7 +13,13 @@ if settings.S3_BUCKET:
     )
 
 
+def is_storage_configured() -> bool:
+    """Check if S3 storage client and bucket are configured."""
+    return bool(s3_client and settings.S3_BUCKET)
+
+
 def build_object_url(key: str | None) -> str | None:
+    """Build public or presigned URL for an object key."""
     if not key:
         return None
 
@@ -37,13 +43,11 @@ def build_object_url(key: str | None) -> str | None:
 
 
 def upload_to_s3(key: str, data: bytes, content_type: str) -> None:
-    if not s3_client or not settings.S3_BUCKET:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Хранилище файлов не настроено",
-        )
+    """Upload raw byte data to configured S3 bucket."""
+    if not is_storage_configured():
+        raise StorageUnavailableException("Хранилище файлов не настроено")
 
-    s3_client.put_object(
+    s3_client.put_object(  # type: ignore[union-attr]
         Bucket=settings.S3_BUCKET,
         Key=key,
         Body=data,
@@ -52,5 +56,6 @@ def upload_to_s3(key: str, data: bytes, content_type: str) -> None:
 
 
 def check_s3_sync() -> None:
-    if s3_client and settings.S3_BUCKET:
-        s3_client.head_bucket(Bucket=settings.S3_BUCKET)
+    """Synchronous head bucket check for health monitoring."""
+    if is_storage_configured():
+        s3_client.head_bucket(Bucket=settings.S3_BUCKET)  # type: ignore[union-attr]

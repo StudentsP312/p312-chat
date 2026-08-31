@@ -87,7 +87,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 
 def get_sync_db() -> Generator[Session, None, None]:
-    """Dependency/helper for providing a sync database session (Celery/scripts)."""
+    """Helper for providing a sync database session (Celery / scripts)."""
     db = SyncSessionLocal()
     try:
         yield db
